@@ -1,5 +1,9 @@
-FROM sameersbn/ubuntu:14.04.20150712
-MAINTAINER sameer@damagehead.com
+FROM debian:jessie
+MAINTAINER Jean Berniolles <jean@berniolles.fr>
+
+# init
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get -y dist-upgrade
 
 ENV PG_VERSION=9.4 \
     PG_USER=postgres \
@@ -9,10 +13,8 @@ ENV PG_CONFDIR="/etc/postgresql/${PG_VERSION}/main" \
     PG_BINDIR="/usr/lib/postgresql/${PG_VERSION}/bin" \
     PG_DATADIR="${PG_HOME}/${PG_VERSION}/main"
 
-RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
- && echo 'deb http://apt.postgresql.org/pub/repos/apt/ trusty-pgdg main' > /etc/apt/sources.list.d/pgdg.list \
- && apt-get update \
- && apt-get install -y postgresql-${PG_VERSION} postgresql-client-${PG_VERSION} postgresql-contrib-${PG_VERSION} \
+RUN apt-get install -y sudo postgresql-${PG_VERSION} \
+  postgresql-client-${PG_VERSION} postgresql-contrib-${PG_VERSION} \
  && rm -rf ${PG_HOME} \
  && rm -rf /var/lib/apt/lists/*
 
