@@ -1,7 +1,7 @@
 all: build
 
 build:
-	@docker build --tag=${USER}/postgresql .
+	@docker build --tag=sameersbn/postgresql .
 
 release: build
-	@docker build --tag=${USER}/postgresql:$(shell cat VERSION) .
+	@docker build --tag=sameersbn/postgresql:$(shell cat VERSION) .
