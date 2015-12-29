@@ -1,5 +1,21 @@
 # Changelog
 
+**9.4-11**
+- added `PG_PASSWORD` variable to specify password for `postgres` user
+
+**9.4-9**
+- complete rewrite
+- `PSQL_TRUST_LOCALNET` config parameter renamed to `PG_TRUST_LOCALNET`
+- `PSQL_MODE` config parameter renamed to `REPLICATION_MODE`
+- `PSQL_SSLMODE` config parameter renamed to `REPLICATION_SSLMODE`
+- defined `/etc/postgresql/certs` as the mountpoint to install SSL key and certificate
+- added `PG_SSL` parameter to enable/disable SSL support
+- `DB_LOCALE` config parameter renamed to `PG_LOCALE`
+- complete rewrite of the README
+- add support for creating backups using `pg_basebackup`
+- removed `PG_LOCALE` option (doesn't work!)
+- added `DEBUG` option to enable bash debugging
+
 **9.4-2**
 - added replication options
 
