@@ -22,14 +22,9 @@ if [[ -z ${1} ]]; then
   create_logdir
   create_rundir
 
-  initialize_database
-  configure_recovery
-  configure_ssl
-  trust_localnet
+  set_resolvconf_perms
 
-  create_user
-  create_database
-  create_replication_user
+  configure_postgresql
 
   echo "Starting PostgreSQL ${PG_VERSION}..."
   exec start-stop-daemon --start --chuid ${PG_USER}:${PG_USER} \

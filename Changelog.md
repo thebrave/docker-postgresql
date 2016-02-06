@@ -1,5 +1,9 @@
 # Changelog
 
+**9.4-12**
+- removed use of single-user mode
+- added `DB_TEMPLATE` variable to specify the database template
+
 **9.4-11**
 - added `PG_PASSWORD` variable to specify password for `postgres` user
 
