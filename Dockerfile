@@ -8,12 +8,14 @@ ENV PG_APP_HOME="/etc/docker-postgresql"\
     PG_HOME=/var/lib/postgresql \
     PG_RUNDIR=/run/postgresql \
     PG_LOGDIR=/var/log/postgresql \
-    PG_CERTDIR=/etc/postgresql/certs
-
-ENV PG_BINDIR=/usr/lib/postgresql/${PG_VERSION}/bin \
+    PG_CERTDIR=/etc/postgresql/certs \
     PG_DATADIR=${PG_HOME}/${PG_VERSION}/main
 
-RUN apk add --no-cache bash postgresql postgresql-client postgresql-contrib
+RUN apk add --no-cache curl openrc bash postgresql postgresql-client postgresql-contrib
+
+RUN curl -o /usr/local/bin/gosu -sSL "https://github.com/tianon/gosu/releases/download/1.2/gosu-amd64" && \
+    chmod +x /usr/local/bin/gosu && \
+    apk del curl
 
 COPY runtime/ ${PG_APP_HOME}/
 COPY entrypoint.sh /sbin/entrypoint.sh

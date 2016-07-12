@@ -1,5 +1,8 @@
 #!/bin/bash
 set -e
+
+export PG_DATADIR=${PG_HOME}/${PG_VERSION}/main
+
 source ${PG_APP_HOME}/env-defaults
 
 PG_CONF=${PG_DATADIR}/postgresql.conf
@@ -9,7 +12,7 @@ PG_RECOVERY_CONF=${PG_DATADIR}/recovery.conf
 
 ## Execute command as PG_USER
 exec_as_postgres() {
-  sudo -HEu ${PG_USER} "$@"
+  gosu ${PG_USER} "$@"
 }
 
 map_uidgid() {
@@ -25,17 +28,15 @@ map_uidgid() {
 }
 
 create_datadir() {
-  echo "Initializing datadir..."
-  mkdir -p ${PG_HOME}
-  if [[ -d ${PG_DATADIR} ]]; then
-    find ${PG_DATADIR} -type f -exec chmod 0600 {} \;
-    find ${PG_DATADIR} -type d -exec chmod 0700 {} \;
-  fi
+  echo "Initializing datadir... (${PG_DATADIR})"
+  mkdir -p ${PG_DATADIR}
+  find ${PG_DATADIR} -type f -exec chmod 0600 {} \;
+  find ${PG_DATADIR} -type d -exec chmod 0700 {} \;
   chown -R ${PG_USER}:${PG_USER} ${PG_HOME}
 }
 
 create_certdir() {
-  echo "Initializing certdir..."
+  echo "Initializing certdir... (${PG_CERTDIR})"
   mkdir -p ${PG_CERTDIR}
   [[ -f ${PG_CERTDIR}/server.crt ]] && chmod 0644 ${PG_CERTDIR}/server.crt
   [[ -f ${PG_CERTDIR}/server.key ]] && chmod 0640 ${PG_CERTDIR}/server.key
@@ -44,14 +45,14 @@ create_certdir() {
 }
 
 create_logdir() {
-  echo "Initializing logdir..."
+  echo "Initializing logdir... (${PG_LOGDIR})"
   mkdir -p ${PG_LOGDIR}
   chmod -R 1775 ${PG_LOGDIR}
   chown -R root:${PG_USER} ${PG_LOGDIR}
 }
 
 create_rundir() {
-  echo "Initializing rundir..."
+  echo "Initializing rundir... (${PG_RUNDIR})"
   mkdir -p ${PG_RUNDIR} ${PG_RUNDIR}/${PG_VERSION}-main.pg_stat_tmp
   chmod -R 0755 ${PG_RUNDIR}
   chmod g+s ${PG_RUNDIR}
@@ -152,7 +153,7 @@ initialize_database() {
 
         echo -n "Waiting for $REPLICATION_HOST to accept connections (60s timeout)"
         timeout=60
-        while ! ${PG_BINDIR}/pg_isready -h $REPLICATION_HOST -p $REPLICATION_PORT -t 1 >/dev/null 2>&1
+        while ! pg_isready -h $REPLICATION_HOST -p $REPLICATION_PORT -t 1 >/dev/null 2>&1
         do
           timeout=$(expr $timeout - 1)
           if [[ $timeout -eq 0 ]]; then
@@ -167,17 +168,17 @@ initialize_database() {
         case ${REPLICATION_MODE} in
           slave)
             echo "Replicating initial data from $REPLICATION_HOST..."
-            exec_as_postgres PGPASSWORD=$REPLICATION_PASS ${PG_BINDIR}/pg_basebackup -D ${PG_DATADIR} \
+            exec_as_postgres PGPASSWORD=$REPLICATION_PASS pg_basebackup -D ${PG_DATADIR} \
               -h ${REPLICATION_HOST} -p ${REPLICATION_PORT} -U ${REPLICATION_USER} -X stream -w >/dev/null
             ;;
           snapshot)
             echo "Generating a snapshot data on $REPLICATION_HOST..."
-            exec_as_postgres PGPASSWORD=$REPLICATION_PASS ${PG_BINDIR}/pg_basebackup -D ${PG_DATADIR} \
+            exec_as_postgres PGPASSWORD=$REPLICATION_PASS pg_basebackup -D ${PG_DATADIR} \
               -h ${REPLICATION_HOST} -p ${REPLICATION_PORT} -U ${REPLICATION_USER} -X fetch -w >/dev/null
             ;;
           backup)
             echo "Backing up data on $REPLICATION_HOST..."
-            exec_as_postgres PGPASSWORD=$REPLICATION_PASS ${PG_BINDIR}/pg_basebackup -D ${PG_DATADIR} \
+            exec_as_postgres PGPASSWORD=$REPLICATION_PASS pg_basebackup -D ${PG_DATADIR} \
               -h ${REPLICATION_HOST} -p ${REPLICATION_PORT} -U ${REPLICATION_USER} -X fetch -w >/dev/null
             exit 0
             ;;
@@ -211,24 +212,8 @@ initialize_database() {
           echo "${PG_PASSWORD}" > /tmp/pwfile
         fi
 
-        exec_as_postgres ${PG_BINDIR}/initdb --pgdata=${PG_DATADIR} \
+        exec_as_postgres initdb --pgdata=${PG_DATADIR} \
           --username=${PG_USER} --encoding=unicode --auth=trust ${PG_PASSWORD:+--pwfile=/tmp/pwfile} >/dev/null
-
-        if [[ -n ${PG_OLD_VERSION} ]]; then
-          PG_OLD_BINDIR=/usr/lib/postgresql/${PG_OLD_VERSION}/bin
-          PG_OLD_DATADIR=${PG_HOME}/${PG_OLD_VERSION}/main
-          PG_OLD_CONF=${PG_OLD_DATADIR}/postgresql.conf
-          PG_OLD_HBA_CONF=${PG_OLD_DATADIR}/pg_hba.conf
-          PG_OLD_IDENT_CONF=${PG_OLD_DATADIR}/pg_ident.conf
-
-          echo -n "‣ Migration in progress. Please be patient..."
-          exec_as_postgres ${PG_BINDIR}/pg_upgrade \
-            -b ${PG_OLD_BINDIR} -B ${PG_BINDIR} \
-            -d ${PG_OLD_DATADIR} -D ${PG_DATADIR} \
-            -o "-c config_file=${PG_OLD_CONF} --hba_file=${PG_OLD_HBA_CONF} --ident_file=${PG_OLD_IDENT_CONF}" \
-            -O "-c config_file=${PG_CONF} --hba_file=${PG_HBA_CONF} --ident_file=${PG_IDENT_CONF}" >/dev/null
-          echo
-        fi
         ;;
     esac
 
@@ -379,14 +364,14 @@ configure_postgresql() {
   # start postgres server internally for the creation of users and databases
   rm -rf ${PG_DATADIR}/postmaster.pid
   set_postgresql_param "listen_addresses" "127.0.0.1" quiet
-  exec_as_postgres ${PG_BINDIR}/pg_ctl -D ${PG_DATADIR} -w start >/dev/null
+  exec_as_postgres pg_ctl -D ${PG_DATADIR} -w start >/dev/null
 
   create_user
   create_database
   create_replication_user
 
   # stop the postgres server
-  exec_as_postgres ${PG_BINDIR}/pg_ctl -D ${PG_DATADIR} -w stop >/dev/null
+  exec_as_postgres pg_ctl -D ${PG_DATADIR} -w stop >/dev/null
 
   # listen on all interfaces
   set_postgresql_param "listen_addresses" "*" quiet
