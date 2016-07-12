@@ -1,13 +1,9 @@
-FROM debian:jessie
+FROM gliderlabs/alpine:3.4
 MAINTAINER Jean Berniolles <jean@berniolles.fr>
 # Original version by sameer@damagehead.com
 
-# init
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get -y dist-upgrade
-
 ENV PG_APP_HOME="/etc/docker-postgresql"\
-    PG_VERSION=9.4 \
+    PG_VERSION=9.5 \
     PG_USER=postgres \
     PG_HOME=/var/lib/postgresql \
     PG_RUNDIR=/run/postgresql \
@@ -17,14 +13,7 @@ ENV PG_APP_HOME="/etc/docker-postgresql"\
 ENV PG_BINDIR=/usr/lib/postgresql/${PG_VERSION}/bin \
     PG_DATADIR=${PG_HOME}/${PG_VERSION}/main
 
-RUN apt-get install -y sudo postgresql-${PG_VERSION} \
-  postgresql-client-${PG_VERSION} postgresql-contrib-${PG_VERSION} \
-
- && ln -sf ${PG_DATADIR}/postgresql.conf /etc/postgresql/${PG_VERSION}/main/postgresql.conf \
- && ln -sf ${PG_DATADIR}/pg_hba.conf /etc/postgresql/${PG_VERSION}/main/pg_hba.conf \
- && ln -sf ${PG_DATADIR}/pg_ident.conf /etc/postgresql/${PG_VERSION}/main/pg_ident.conf \
- && rm -rf ${PG_HOME} \
- && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache bash postgresql postgresql-client postgresql-contrib
 
 COPY runtime/ ${PG_APP_HOME}/
 COPY entrypoint.sh /sbin/entrypoint.sh
